@@ -1,0 +1,70 @@
+# To start Docker in Swarm mode, you need to run `docker swarm init`
+# To deploy the Grid, `docker stack deploy -c docker-compose-v3-swarm.yml grid`
+# Stop with `docker stack rm grid`
+# Stop swarm mode `docker swarm leave --force`
+
+version: '3.7'
+
+services:
+  chrome:
+    image: selenium/node-chrome:4.6.0-20221104
+    tmpfs:
+      - /tmp:size=5048M
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - type: tmpfs
+        target: /dev/shm
+    # volumes:
+    #   - type: tmpfs
+    #     target: /dev/shm
+    #     tmpfs:
+    #        size: 4096000000   
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_SESSION_TIMEOUT=120
+      - SE_VNC_NO_PASSWORD=1
+      - SE_NODE_MAX_SESSIONS=4
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_JAVA_OPTS=-Dwebdriver.chrome.whitelistedIps= -XX:+UseG1GC -Xmx1024m -Xms512m -XX:MaxDirectMemorySize=256m
+    ports:
+      - "5900:5900"
+    deploy:
+      replicas: 1
+     # placement:
+     #   constraints: [node.labels.role==node]
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          cpus: '1'
+          memory: 512M
+    entrypoint: bash -c 'SE_OPTS="--host $$HOSTNAME" /opt/bin/entry_point.sh'
+
+  selenium-hub:
+    image: selenium/hub:4.6.0-20221104
+    # volumes:
+    #   - type: tmpfs
+    #     target: /dev/shm
+    #     tmpfs:
+    #        size: 4096000000
+    environment:
+      - SE_SESSION_REQUEST_TIMEOUT=120
+      - SE_JAVA_OPTS=-XX:+UseG1GC -Xmx256m -Xms256m -XX:MaxDirectMemorySize=256M
+    deploy:
+      replicas: 1
+      # placement:
+      #  constraints: [node.labels.role==master]
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '1'
+          memory: 256M
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
